@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Two-Body Simulation with Physics</title>
+  <!-- Include A-Frame library -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- Optional: Include Orbit Controls for better camera interaction -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe-orbit-controls@0.3.1/dist/aframe-orbit-controls.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    .title {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 20px;
+      font-size: 24px;
+      color: white;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Title Overlay -->
+  <div class="title">3D Two-Body Simulation with Basic Physics</div>
+
+  <!-- A-Frame Scene -->
+  <a-scene background="color: #000000">
+    
+    <!-- Camera with Orbit Controls -->
+    <a-entity camera orbit-controls="target: 0 0 0; enableDamping: true; dampingFactor: 0.125; rotateSpeed:0.25" position="0 5 15"></a-entity>
+
+    <!-- Ambient Light -->
+    <a-entity light="type: ambient; color: #ffffff; intensity: 0.5"></a-entity>
+
+    <!-- Directional Light to simulate a light source -->
+    <a-entity light="type: directional; color: #ffffff; intensity: 1" position="5 10 7.5"></a-entity>
+
+    <!-- First Body (e.g., Star) -->
+    <a-sphere id="body1" position="-3 0 0" radius="1.5" color="#FFD700"></a-sphere>
+
+    <!-- Second Body (e.g., Planet) -->
+    <a-sphere id="body2" position="3 0 0" radius="1" color="#1E90FF"></a-sphere>
+
+    <!-- Orbital Paths for Visualization -->
+    <a-entity geometry="primitive: ring; radiusOuter:3.5; radiusInner:3.5; thetaStart:0; thetaLength:360" 
+              material="color: #ffffff; shader: flat; side: double; opacity: 0.3; transparent: true" rotation="-90 0 0"></a-entity>
+
+    <a-entity geometry="primitive: ring; radiusOuter:4.5; radiusInner:4.5; thetaStart:0; thetaLength:360" 
+              material="color: #ffffff; shader: flat; side: double; opacity: 0.3; transparent: true" rotation="-90 0 0"></a-entity>
+
+    <!-- Ground Plane (Optional) -->
+    <a-plane rotation="-90 0 0" width="50" height="50" color="#222222" opacity="0.2"></a-plane>
+    
+    <!-- JavaScript for Basic Physics Simulation -->
+    <script>
+      AFRAME.registerComponent('two-body-simulation', {
+        schema: {
+          mass1: {type: 'number', default: 5},
+          mass2: {type: 'number', default: 1},
+          G: {type: 'number', default: 1}, // Gravitational constant (arbitrary units)
+          velocity1: {type: 'vec3', default: {x: 0, y: 1, z: 0}},
+          velocity2: {type: 'vec3', default: {x: 0, y: -1, z: 0}},
+          timeStep: {type: 'number', default: 0.016} // ~60fps
+        },
+        init: function () {
+          // Get references to the two bodies
+          this.body1 = document.querySelector('#body1');
+          this.body2 = document.querySelector('#body2');
+
+          // Initialize positions and velocities
+          this.position1 = new THREE.Vector3().copy(this.body1.getAttribute('position'));
+          this.position2 = new THREE.Vector3().copy(this.body2.getAttribute('position'));
+          
+          this.velocity1 = new THREE.Vector3(this.data.velocity1.x, this.data.velocity1.y, this.data.velocity1.z);
+          this.velocity2 = new THREE.Vector3(this.data.velocity2.x, this.data.velocity2.y, this.data.velocity2.z);
+          
+          // Bind the tick function
+          this.tick = this.tick.bind(this);
+        },
+        tick: function () {
+          // Calculate the vector from body1 to body2
+          let rVector = new THREE.Vector3().subVectors(this.position2, this.position1);
+          let distance = rVector.length();
+          let forceMagnitude = (this.data.G * this.data.mass1 * this.data.mass2) / (distance * distance);
+          
+          // Normalize the rVector to get direction
+          let forceDirection = rVector.normalize();
+          
+          // Calculate force vectors
+          let force = forceDirection.multiplyScalar(forceMagnitude);
+          
+          // Update velocities based on force and mass
+          let acceleration1 = force.clone().divideScalar(this.data.mass1);
+          let acceleration2 = force.clone().divideScalar(this.data.mass2).negate();
+          
+          this.velocity1.add(acceleration1.multiplyScalar(this.data.timeStep));
+          this.velocity2.add(acceleration2.multiplyScalar(this.data.timeStep));
+          
+          // Update positions based on velocities
+          this.position1.add(this.velocity1.clone().multiplyScalar(this.data.timeStep));
+          this.position2.add(this.velocity2.clone().multiplyScalar(this.data.timeStep));
+          
+          // Apply updated positions to the entities
+          this.body1.setAttribute('position', {
+            x: this.position1.x,
+            y: this.position1.y,
+            z: this.position1.z
+          });
+          
+          this.body2.setAttribute('position', {
+            x: this.position2.x,
+            y: this.position2.y,
+            z: this.position2.z
+          });
+        }
+      });
+
+      // Attach the component to the scene
+      document.querySelector('a-scene').setAttribute('two-body-simulation', '');
+    </script>
+  </a-scene>
+</body>
+</html>
